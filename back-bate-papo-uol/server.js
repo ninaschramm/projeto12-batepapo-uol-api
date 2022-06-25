@@ -48,6 +48,13 @@ db.collection("messages").insertOne({from: `${user.name}`, to: 'Todos', text: 'e
 });
 
 
+server.get('/participants', (request, response) => {
+
+    const limit = parseInt(request.query.limit);
+
+db.collection("users").find().toArray().then(users => response.send(users))
+
+})
 
 server.post('/messages', (request, response) => {
   let msg = request.body;
