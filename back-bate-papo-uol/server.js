@@ -35,8 +35,8 @@ mongoClient.connect().then(() => {
 server.post('/participants', (request, response) => {
 
 const user = request.body;
-user.lastStatus = Date.now()
-let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}}`;
+user.lastStatus = Date.now();
+let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
 
 
 if (user.name === "") {return response.status(422).send("Campo nome não pode ser vazio")}
@@ -49,10 +49,12 @@ db.collection("messages").insertOne({from: `${user.name}`, to: 'Todos', text: 'e
 
 
 
-server.post('/tweets', (request, response) => {
-  let tweet = request.body;
+server.post('/messages', (request, response) => {
+  let msg = request.body;
+  const { user } = request.headers;
+  let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}}`;
   
-  db.collection("tweets").insertOne(tweet).then(() => response.send("OK"))
+  db.collection("messages").insertOne({from: `${user}`, to: `${msg.to}`, text: `${msg.text}`, type: `${msg.type}`, time: `${time}`}).then(() => response.sendStatus(201))
 })
 
 server.get('/messages', (request, response) => {
