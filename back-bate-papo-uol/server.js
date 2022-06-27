@@ -43,13 +43,15 @@ const userSchema = joi.object({
 const messageSchema = joi.object({
     to: joi.string().min(1).required(),
     text: joi.string().min(1).required(),
-    type: joi.string().required(),
+    type: joi.string().valid('message','private_message').required(),
     from: joi.string().min(1).required(),
     time: [
         joi.string(),
         joi.number()
     ]
   });
+
+setInterval(removeParticipant, 15000)
 
 server.post('/participants', async (request, response) => {
 
@@ -90,6 +92,9 @@ server.post('/messages', async (request, response) => {
   let msg = request.body;
   const { user } = request.headers;
   let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
+  
+  const fromValidation = await db.collection("users").findOne({name: user})  
+  if (!fromValidation) {return response.status(422).send("Usuário não está logado")}
 
   let newMessage = {from: `${user}`, to: `${msg.to}`, text: `${msg.text}`, type: `${msg.type}`, time: `${time}`}
 
@@ -131,7 +136,6 @@ server.post('/status', async (request, response) => {
 			return;
 		}
 
-
 		await db.collection("users").updateOne({ 
 			name: user
 		}, { $set: {lastStatus: Date.now()}})
@@ -144,13 +148,18 @@ server.post('/status', async (request, response) => {
 
 })
 
-// function removeParticipant {
-//     let now = Date.now();
-//     for 
-//     if (parseInt(now) - parseInt(user.lastStatus) > 10) {
+async function removeParticipant() {
+    let now = Date.now();    
+    const users = await db.collection("users").find().toArray();
+    let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
 
-//     }
-// }
+    for (let user of users) {
+        if (now - user.lastStatus > 10000) {
+            db.collection("users").deleteOne( { name: user.name } )
+            db.collection("messages").insertOne({from: `${user.name}`, to: 'Todos', text: 'sai na sala...', type: 'status', time: `${time}`})
+        }
+    }
+}
 
 
 
