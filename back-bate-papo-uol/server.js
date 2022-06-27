@@ -1,6 +1,6 @@
 import express from "express";
 import cors from 'cors';
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dotenv from 'dotenv';
 import dayjs from "dayjs";
 import joi from "joi";
@@ -68,7 +68,7 @@ if (validation.error) {
 
 try { 
     const loggedUser = await db.collection("users").findOne({ name: user.name })
-    if (loggedUser) {return response.status(422).send("Nome de usuário já está sendo utilizado")}
+    if (loggedUser) {return response.status(409).send("Nome de usuário já está sendo utilizado")}
 
     await
 db.collection("users").insertOne(user);
@@ -167,6 +167,16 @@ async function removeParticipant() {
     }
 }
 
+server.delete(`/messages/:id`, async (request, response) => {
+    const { user } = request.headers;
+    const id = request.params;
+    const message = await db.collection("messages").findOne({_id: new ObjectId(id)});
+    if (!message) {return response.status(404).send("Não encontrado")};
+    const verifyUser = await db.collection("messages").find( {$and: [{_id: new ObjectId(id)}, {from: `${user}`}]} );
+    if (!verifyUser) {return response.status(401).send("Não autorizado")};
+    await db.collection("messages").deleteOne( { _id: new ObjectId(id)} )
+    response.status(200)
+})
 
 
 server.listen(5000)
