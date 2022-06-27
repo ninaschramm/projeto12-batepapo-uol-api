@@ -3,6 +3,7 @@ import cors from 'cors';
 import { MongoClient } from "mongodb";
 import dotenv from 'dotenv';
 import dayjs from "dayjs";
+import Joi from "joi";
 
 const server = express();
 
@@ -32,7 +33,7 @@ mongoClient.connect().then(() => {
 });
 
 
-server.post('/participants', (request, response) => {
+server.post('/participants', async (request, response) => {
 
 const user = request.body;
 user.lastStatus = Date.now();
@@ -40,37 +41,77 @@ let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss
 
 
 if (user.name === "") {return response.status(422).send("Campo nome não pode ser vazio")}
-else {
-db.collection("users").insertOne(user).then(() => response.status(201).send("OK"))
+else { try { await
+db.collection("users").insertOne(user);
+response.status(201).send("OK")
 db.collection("messages").insertOne({from: `${user.name}`, to: 'Todos', text: 'entra na sala...', type: 'status', time: `${time}`})
 }
+catch (error) {response.status(500)}}
 
 });
 
 
-server.get('/participants', (request, response) => {
+server.get('/participants', async (request, response) => {
 
-    const limit = parseInt(request.query.limit);
-
-db.collection("users").find().toArray().then(users => response.send(users))
-
+    const users = await db.collection("users").find().toArray();
+    
+    response.send(users);
 })
 
 server.post('/messages', (request, response) => {
   let msg = request.body;
   const { user } = request.headers;
-  let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}}`;
+  let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
   
   db.collection("messages").insertOne({from: `${user}`, to: `${msg.to}`, text: `${msg.text}`, type: `${msg.type}`, time: `${time}`}).then(() => response.sendStatus(201))
 })
 
-server.get('/messages', (request, response) => {
+server.get('/messages', async (request, response) => {
 
     const limit = parseInt(request.query.limit);
 
-db.collection("messages").find().toArray().then(msg => response.send(msg))
+    const messageList = await db.collection("messages").find().toArray();
+    const messageLimited = messageList.slice(10)
+    
+    if (limit) {
+        console.log(limit)
+        return response.send(messageLimited)}
+
+    response.send(messageList)
 
 })
+
+server.post('/status', async (request, response) => {
+
+    const { user } = request.headers;
+
+    try {
+		const userStatus = await db.collection("users").findOne({ name: user })
+		if (!userStatus) {
+			response.sendStatus(404)
+			return;
+		}
+
+
+		await db.collection("users").updateOne({ 
+			name: user
+		}, { $set: {lastStatus: Date.now()}})
+				
+		response.sendStatus(200)
+        
+	 } catch (error) {
+	  response.status(500).send(error)
+	 }
+
+})
+
+// function removeParticipant {
+//     let now = Date.now();
+//     for 
+//     if (parseInt(now) - parseInt(user.lastStatus) > 10) {
+
+//     }
+// }
 
 
 
