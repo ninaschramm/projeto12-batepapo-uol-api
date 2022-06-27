@@ -71,10 +71,9 @@ server.get('/messages', async (request, response) => {
     const limit = parseInt(request.query.limit);
 
     const messageList = await db.collection("messages").find().toArray();
-    const messageLimited = messageList.slice(10)
+    const messageLimited = messageList.slice(-limit)
     
     if (limit) {
-        console.log(limit)
         return response.send(messageLimited)}
 
     response.send(messageList)
