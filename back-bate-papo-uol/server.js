@@ -3,7 +3,7 @@ import cors from 'cors';
 import { MongoClient } from "mongodb";
 import dotenv from 'dotenv';
 import dayjs from "dayjs";
-import Joi from "joi";
+import joi from "joi";
 
 const server = express();
 
@@ -32,6 +32,24 @@ mongoClient.connect().then(() => {
   db = mongoClient.db("bate-papo-uol");
 });
 
+const userSchema = joi.object({
+    name: joi.string().required(),
+    lastStatus: [
+        joi.string(),
+        joi.number()
+    ]
+  });
+
+const messageSchema = joi.object({
+    to: joi.string().min(1).required(),
+    text: joi.string().min(1).required(),
+    type: joi.string().required(),
+    from: joi.string().min(1).required(),
+    time: [
+        joi.string(),
+        joi.number()
+    ]
+  });
 
 server.post('/participants', async (request, response) => {
 
@@ -39,14 +57,24 @@ const user = request.body;
 user.lastStatus = Date.now();
 let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
 
+const validation = userSchema.validate(user);
 
-if (user.name === "") {return response.status(422).send("Campo nome não pode ser vazio")}
-else { try { await
+if (validation.error) {
+    console.log(validation.error.details)
+  return response.status(422).send("Nome de usuário é obrigatório")  
+}
+
+try { 
+    const loggedUser = await db.collection("users").findOne({ name: user.name })
+    if (loggedUser) {return response.status(422).send("Nome de usuário já está sendo utilizado")}
+
+    await
 db.collection("users").insertOne(user);
 response.status(201).send("OK")
 db.collection("messages").insertOne({from: `${user.name}`, to: 'Todos', text: 'entra na sala...', type: 'status', time: `${time}`})
 }
-catch (error) {response.status(500)}}
+
+catch (error) {response.status(500)}
 
 });
 
@@ -58,12 +86,24 @@ server.get('/participants', async (request, response) => {
     response.send(users);
 })
 
-server.post('/messages', (request, response) => {
+server.post('/messages', async (request, response) => {
   let msg = request.body;
   const { user } = request.headers;
   let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
-  
-  db.collection("messages").insertOne({from: `${user}`, to: `${msg.to}`, text: `${msg.text}`, type: `${msg.type}`, time: `${time}`}).then(() => response.sendStatus(201))
+
+  let newMessage = {from: `${user}`, to: `${msg.to}`, text: `${msg.text}`, type: `${msg.type}`, time: `${time}`}
+
+  const validation = messageSchema.validate(newMessage);
+
+if (validation.error) {
+    console.log(validation.error.details)
+  return response.status(422).send("Algo está errado")  
+}
+
+try { await db.collection("messages").insertOne(newMessage) 
+response.sendStatus(201)
+}
+catch (error) {response.status(500)}
 })
 
 server.get('/messages', async (request, response) => {
