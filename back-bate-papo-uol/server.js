@@ -114,9 +114,15 @@ catch (error) {response.status(500)}
 server.get('/messages', async (request, response) => {
 
     const limit = parseInt(request.query.limit);
+    const { user } = request.headers;
 
-    const messageList = await db.collection("messages").find().toArray();
-    const messageLimited = messageList.slice(-limit)
+    const messages = await db.collection("messages").find().toArray();
+    const messageList = messages.filter((message) => {
+        if (message.to === "Todos" || message.to === `${user}` || message.from === `${user}`) {return true}
+        else if (message.type === "message" || message.type === "status") {return true}
+        else {return false}
+    });
+    const messageLimited = messageList.slice(-limit);
     
     if (limit) {
         return response.send(messageLimited)}
