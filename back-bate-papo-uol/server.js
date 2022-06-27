@@ -178,5 +178,33 @@ server.delete(`/messages/:id`, async (request, response) => {
     response.status(200)
 })
 
+server.put(`/messages/:id`, async (request, response) => {
+    const { user } = request.headers;
+    const id = request.params;
+    const message = await db.collection("messages").findOne({_id: new ObjectId(id)});
+    if (!message) {return response.status(404).send("Não encontrado")};
+    const verifyUser = await db.collection("messages").find( {$and: [{_id: new ObjectId(id)}, {from: `${user}`}]} );
+    if (!verifyUser) {return response.status(401).send("Não autorizado")};
+
+    let msg = request.body;
+  let time = `${dayjs().format('HH')}:${dayjs().format('mm')}:${dayjs().format('ss')}`;
+  
+  const fromValidation = await db.collection("users").findOne({name: user})  
+  if (!fromValidation) {return response.status(422).send("Usuário não está logado")}
+
+  let newMessage = {from: `${user}`, to: `${msg.to}`, text: `${msg.text}`, type: `${msg.type}`, time: `${time}`}
+
+  const validation = messageSchema.validate(newMessage);
+
+if (validation.error) {
+    console.log(validation.error.details)
+  return response.status(422).send("Algo está errado")  
+}
+
+try { await db.collection("messages").updateOne( {_id: new ObjectId(id)}, { $set: newMessage } ) 
+response.sendStatus(201)
+}
+catch (error) {response.status(500)}
+})
 
 server.listen(5000)
